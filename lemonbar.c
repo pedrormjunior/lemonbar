@@ -115,6 +115,7 @@ static int offset_y_index = 0;
 static uint32_t attrs = 0;
 static bool dock = false;
 static bool topbar = true;
+static bool center_fonts = false; // -c: center each font by its own height
 static int bw = -1, bh = -1, bx = 0, by = 0;
 static int bu = 1; // Underline height
 static rgba_t fgc, bgc, ugc;
@@ -314,7 +315,10 @@ draw_char (monitor_t *mon, font_t *cur_font, int x, int align, uint16_t ch)
 
     x = shift(mon, x, align, ch_width);
 
-    int y = bh / 2 + cur_font->height / 2- cur_font->descent + offsets_y[offset_y_index];
+    // Default: every font uses the tallest font's height, so the fonts are
+    // bottom-aligned. With -c each font is centered by its own height.
+    int h = center_fonts ? cur_font->ascent + cur_font->descent : cur_font->height;
+    int y = bh / 2 + h / 2 - cur_font->descent + offsets_y[offset_y_index];
     if (cur_font->xft_ft) {
         XftDrawString16 (xft_draw, &sel_fg, cur_font->xft_ft, x,y, &ch, 1);
     } else {
@@ -797,6 +801,7 @@ font_load (const char *pattern)
 
         ret->xft_ft = NULL;
         ret->ptr = font;
+        ret->ascent = font_info->font_ascent;
         ret->descent = font_info->font_descent;
         ret->height = font_info->font_ascent + font_info->font_descent;
         ret->width = font_info->max_bounds.character_width;
@@ -1480,12 +1485,13 @@ main (int argc, char **argv)
     // Connect to the Xserver and initialize scr
     xconn();
 
-    while ((ch = getopt(argc, argv, "hg:bdf:a:pu:B:F:U:n:o:")) != -1) {
+    while ((ch = getopt(argc, argv, "hcg:bdf:a:pu:B:F:U:n:o:")) != -1) {
         switch (ch) {
             case 'h':
                 printf ("lemonbar version %s patched with XFT support\n", VERSION);
-                printf ("usage: %s [-h | -g | -b | -d | -f | -a | -p | -n | -u | -B | -F]\n"
+                printf ("usage: %s [-h | -c | -g | -b | -d | -f | -a | -p | -n | -u | -B | -F | -o]\n"
                         "\t-h Show this help\n"
+                        "\t-c Center each font vertically by its own height\n"
                         "\t-g Set the bar geometry {width}x{height}+{xoffset}+{yoffset}\n"
                         "\t-b Put the bar at the bottom of the screen\n"
                         "\t-d Force docking (use this if your WM isn't EWMH compliant)\n"
@@ -1498,6 +1504,7 @@ main (int argc, char **argv)
                         "\t-F Set foreground color in #AARRGGBB\n"
                         "\t-o Add a vertical offset to the text, it can be negative\n", argv[0]);
                 exit (EXIT_SUCCESS);
+            case 'c': center_fonts = true; break;
             case 'g': (void)parse_geometry_string(optarg, geom_v); break;
             case 'p': permanent = true; break;
             case 'n': wm_name = strdup(optarg); break;
